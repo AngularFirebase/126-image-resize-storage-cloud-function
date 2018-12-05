@@ -51,7 +51,8 @@ export const generateThumbs = functions.storage
 
       // Upload to GCS
       return bucket.upload(thumbPath, {
-        destination: join(bucketDir, thumbName)
+        destination: join(bucketDir, thumbName),
+        metadata: {contentType: object.contentType}
       });
     });
 
