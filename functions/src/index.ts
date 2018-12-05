@@ -1,18 +1,15 @@
 import * as functions from 'firebase-functions';
-
-import * as Storage from '@google-cloud/storage';
-const gcs = Storage();
-
-import { tmpdir } from 'os';
+import * as admin from 'firebase-admin';
+admin.initializeApp();
+import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-
 import * as sharp from 'sharp';
 import * as fs from 'fs-extra';
 
 export const generateThumbs = functions.storage
-  .object()
-  .onFinalize(async object => {
-    const bucket = gcs.bucket(object.bucket);
+.object()
+.onFinalize(async object => {
+    const bucket = admin.storage().bucket(object.bucket);
     const filePath = object.name;
     const fileName = filePath.split('/').pop();
     const bucketDir = dirname(filePath);
@@ -51,7 +48,7 @@ export const generateThumbs = functions.storage
       });
     });
 
-    // 4. Run the upload operations
+    // 4. Await the upload operations
     await Promise.all(uploadPromises);
 
     // 5. Cleanup remove the tmp/thumbs from the filesystem
