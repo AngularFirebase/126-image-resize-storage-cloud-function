@@ -6,6 +6,8 @@ import { join, dirname } from 'path';
 import * as sharp from 'sharp';
 import * as fs from 'fs-extra';
 
+// this function is generating thumbnails for new images from previous images.
+// It is not clearing the previously uploaded image.
 export const generateThumbs = functions.storage
 .object()
 .onFinalize(async object => {
@@ -14,14 +16,19 @@ export const generateThumbs = functions.storage
     const fileName = filePath.split('/').pop();
     const bucketDir = dirname(filePath);
 
-    const workingDir = join(tmpdir(), 'thumbs');
-    const tmpFilePath = join(workingDir, 'source.png');
-
+    // Check if the function should run at all
     if (fileName.includes('thumb@') || !object.contentType.includes('image')) {
-      console.log('exiting function');
-      return false;
+        console.log('exiting function');
+        return false;
     }
-
+    
+    const workingDir = join(tmpdir(), 'thumbs');
+    // Ensure that the correct image is used, by adding a random number to the tmpFilePath
+    const tmpFilePath = join(workingDir, `${Math.random()}${fileName}`);
+    
+    // Add debug step:
+    console.log({filePath, fileName, bucketDir, workingDir, tmpFilePath, tmpdir: tmpdir()});
+    
     // 1. Ensure thumbnail dir exists
     await fs.ensureDir(workingDir);
 
