@@ -1,30 +1,34 @@
 import * as functions from 'firebase-functions';
-
-import * as Storage from '@google-cloud/storage';
-const gcs = Storage();
-
-import { tmpdir } from 'os';
+import * as admin from 'firebase-admin';
+admin.initializeApp();
+import { tmpdir } from 'os';
 import { join, dirname } from 'path';
-
 import * as sharp from 'sharp';
 import * as fs from 'fs-extra';
 
+// this function is generating thumbnails for new images from previous images.
+// It is not clearing the previously uploaded image.
 export const generateThumbs = functions.storage
-  .object()
-  .onFinalize(async object => {
-    const bucket = gcs.bucket(object.bucket);
+.object()
+.onFinalize(async object => {
+    const bucket = admin.storage().bucket(object.bucket);
     const filePath = object.name;
     const fileName = filePath.split('/').pop();
     const bucketDir = dirname(filePath);
 
-    const workingDir = join(tmpdir(), 'thumbs');
-    const tmpFilePath = join(workingDir, 'source.png');
-
+    // Check if the function should run at all
     if (fileName.includes('thumb@') || !object.contentType.includes('image')) {
-      console.log('exiting function');
-      return false;
+        console.log('exiting function');
+        return false;
     }
-
+    
+    const workingDir = join(tmpdir(), 'thumbs');
+    // Ensure that the correct image is used, by adding a random number to the tmpFilePath
+    const tmpFilePath = join(workingDir, `${Math.random()}${fileName}`);
+    
+    // Add debug step:
+    console.log({filePath, fileName, bucketDir, workingDir, tmpFilePath, tmpdir: tmpdir()});
+    
     // 1. Ensure thumbnail dir exists
     await fs.ensureDir(workingDir);
 
@@ -47,11 +51,12 @@ export const generateThumbs = functions.storage
 
       // Upload to GCS
       return bucket.upload(thumbPath, {
-        destination: join(bucketDir, thumbName)
+        destination: join(bucketDir, thumbName),
+        metadata: {contentType: object.contentType}
       });
     });
 
-    // 4. Run the upload operations
+    // 4. Await the upload operations
     await Promise.all(uploadPromises);
 
     // 5. Cleanup remove the tmp/thumbs from the filesystem
